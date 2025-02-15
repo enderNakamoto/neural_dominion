@@ -2,9 +2,34 @@ import type { GameState, GameStatus, Nation, Ideology, Personality, Vector3D } f
 import { getStoredGame } from './storage';
 import personalities from './db/personalities';
 import {ideologies} from './db/ideologies';
+import { ethers } from 'ethers';
+import {
+  createContract,
+  chainRead,
+  chainWrite
+} from './contract/chain';
 import cli  = require('cli-color');
 
 const clc = cli;
+
+// Blockchain Configuration
+const CONTRACT_ADDRESS = process.env.CONTRACT_ADDRESS;
+const RPC_URL = process.env.RPC_URL; 
+const PLAYER1_PRIVATE_KEY = process.env.PLAYER1_PRIVATE_KEY;
+const PLAYER2_PRIVATE_KEY = process.env.PLAYER2_PRIVATE_KEY;
+
+if (!CONTRACT_ADDRESS || !RPC_URL || !PLAYER1_PRIVATE_KEY || !PLAYER2_PRIVATE_KEY) {
+  throw new Error("Missing environment variables. Please check your .env file.");
+}
+
+// Setup provider and signers
+const provider = new ethers.JsonRpcProvider(RPC_URL);
+const player1Signer = new ethers.Wallet(PLAYER1_PRIVATE_KEY, provider);
+const player2Signer = new ethers.Wallet(PLAYER2_PRIVATE_KEY, provider);
+
+// Create contract instances
+const player1Contract = createContract(CONTRACT_ADDRESS, player1Signer);
+const player2Contract = createContract(CONTRACT_ADDRESS, player2Signer);
 
 // Default initial GDP value
 const DEFAULT_GDP = 5000;
@@ -439,6 +464,9 @@ export function calculateWinner(gameId: string): {
     }
   });
 
+  const winner = player1Score > player2Score ? game.player1Nation.name : 
+                player2Score > player1Score ? game.player2Nation.name : 'Tie';
+
   // Create score breakdown
   const breakdown = `
 Score Breakdown:
@@ -454,9 +482,25 @@ Alliance Points: ${Math.floor((player2Score - (gdp2 > gdp1 ? 20 : 0)))} (${Math.
 Total: ${player2Score}
   `;
 
+  console.log(clc.red("Storing game results on Mantle..."));
+
+  // Store winner on blockchain
+  try {
+    const winningScore = Math.max(player1Score, player2Score);
+    const contract = player1Score > player2Score ? player1Contract : player2Contract;
+    
+    if (winner !== 'Tie') {
+      chainWrite.setWinner(contract, gameId, winner, winningScore)
+        .then(() => console.log(clc.green("Winner successfully recorded on blockchain!")))
+        .catch(error => console.error("Warning: Failed to record winner on blockchain:", error));
+    }
+  } catch (error) {
+    console.error("Warning: Error processing winner on blockchain:", error);
+    // Continue even if blockchain storage fails
+  }
+
   return {
-    winner: player1Score > player2Score ? game.player1Nation.name : 
-            player2Score > player1Score ? game.player2Nation.name : 'Tie',
+    winner,
     player1Score,
     player2Score,
     breakdown

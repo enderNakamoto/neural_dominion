@@ -123,7 +123,9 @@ async function processAllianceDecisions(gameId: string) {
   }
 
   try {
-    console.log("\nProcessing AI nation alliances...");
+    console.log(clc.red("\nProcessing AI nation alliances..."));
+    console.log(clc.red("each AI leader is deciding on choosing an ally beetwen the two players"));
+    console.log(clc.red("the alliances are chosen based on freedon index natches"));
     const alliances = await processAlliances(gameId);
     
     console.log("\nAlliance Results:");
@@ -156,7 +158,10 @@ async function processWinner(gameId: string) {
     return;
   }
 
-  console.log("\n=== Game Results ===");
+  console.log(clc.red("\nCalculating winner..."));
+  console.log(clc.yellow("=========================================================="));
+  console.log("=== Game Results ===");
+  console.log(clc.yellow("=========================================================="));
   console.log(result.breakdown);
   if (result.winner === 'Tie') {
     console.log("\n🤝 The game is a tie!");

@@ -226,9 +226,11 @@ export async function createPlayerNation(gameId: string, isPlayer1: boolean = tr
   try {
     if (!isPlayer1) {
       // Player 2 joins game on blockchain
-      console.log("Joining game on blockchain...");
+      console.log(clc.yellow("========================================"));
+      console.log(clc.red("Please wait while we join the game on Mantle..."));
       await chainWrite.joinGame(player2Contract, gameId);
-      console.log("Successfully joined game on blockchain!");
+      console.log(clc.green("Successfully joined game on blockchain!"));
+      console.log(clc.yellow("========================================"));
     }
   } catch (error) {
     console.error("Warning: Failed to join game on blockchain:", error);

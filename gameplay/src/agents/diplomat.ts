@@ -3,6 +3,9 @@ import { PromptTemplate } from "@langchain/core/prompts";
 import { z } from "zod";
 import type { Nation } from '../types';
 import { getGame, updateGameStatus } from '../helpers';
+import cli  = require('cli-color');
+
+const clc = cli;
 
 // Define the structure for alliance decisions
 interface AllianceDecision {
@@ -126,16 +129,17 @@ export async function processAlliances(gameId: string): Promise<AllianceDecision
   // Process each AI nation's alliance decision
   for (const aiNation of game.aiNations) {
     try {
-      console.log(`\nAnalyzing alliance compatibility for ${aiNation.name}...`);
+      console.log(clc.red(`\nAnalyzing alliance compatibility for ${aiNation.name}...`));
       const alliance = await getAllianceDecision(
         aiNation,
         game.player1Nation,
         game.player2Nation
       );
       alliances.push(alliance);
-      console.log(`${aiNation.name} has chosen to ally with ${alliance.chosenAlly}`);
-      console.log(`Compatibility Score: ${alliance.compatibilityScore}%`);
-      console.log(`Analysis: ${alliance.reasoning}\n`);
+      console.log(clc.green(`${aiNation.name} has chosen to ally with ${alliance.chosenAlly}`));
+      console.log(clc.green(`Compatibility Score: ${alliance.compatibilityScore}%`));
+      console.log(clc.blue(`Analysis: ${alliance.reasoning}\n`));
+      console.log(clc.yellow("=========================================================="));
     } catch (error) {
       console.error(`Error processing alliance for ${aiNation.name}:`, error);
     }
