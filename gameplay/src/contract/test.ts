@@ -121,10 +121,6 @@ async function testGameCompletion(
     gameId: string
 ) {
     console.log("\n=== Testing Game Completion ===");
-    
-    // Update game status to ready
-    console.log("\nUpdating game status to ready...");
-    await chainWrite.updateGameStatus(player1Contract, gameId, 'ready');
 
     // Update to processing
     console.log("\nUpdating game status to processing...");
@@ -159,6 +155,8 @@ async function testFullGameFlow() {
         const provider = new ethers.JsonRpcProvider(RPC_URL);
         const player1Signer = new ethers.Wallet(PLAYER1_PRIVATE_KEY, provider);
         const player2Signer = new ethers.Wallet(PLAYER2_PRIVATE_KEY, provider);
+
+        console.log('contract address is',CONTRACT_ADDRESS);
 
         // Create contract instances
         const player1Contract = createContract(CONTRACT_ADDRESS, player1Signer);
