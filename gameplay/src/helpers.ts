@@ -9,8 +9,11 @@ import {
   chainWrite
 } from './contract/chain';
 import cli  = require('cli-color');
+import dotenv from 'dotenv';
 
 const clc = cli;
+dotenv.config();
+
 
 // Blockchain Configuration
 const CONTRACT_ADDRESS = process.env.CONTRACT_ADDRESS;
