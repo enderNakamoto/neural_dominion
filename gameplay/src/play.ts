@@ -16,21 +16,56 @@ import {
 } from './helpers';
 import { playAINation } from './agents/governor';
 import { storeGame } from './storage';
+import { ethers } from 'ethers';
+import {
+  createContract,
+  chainRead,
+  chainWrite
+} from './contract/chain';
+import cli  = require('cli-color');
 
+const clc = cli;
 const prompt = PromptSync({ sigint: true });
+
+// Blockchain Configuration
+const CONTRACT_ADDRESS = process.env.CONTRACT_ADDRESS;
+const RPC_URL = process.env.RPC_URL; 
+const PLAYER1_PRIVATE_KEY = process.env.PLAYER1_PRIVATE_KEY;
+const PLAYER2_PRIVATE_KEY = process.env.PLAYER2_PRIVATE_KEY;
+
+if (!CONTRACT_ADDRESS || !RPC_URL || !PLAYER1_PRIVATE_KEY || !PLAYER2_PRIVATE_KEY) {
+  throw new Error("Missing environment variables. Please check your .env file.");
+}
+
+// Setup provider and signers
+const provider = new ethers.JsonRpcProvider(RPC_URL);
+const player1Signer = new ethers.Wallet(PLAYER1_PRIVATE_KEY, provider);
+const player2Signer = new ethers.Wallet(PLAYER2_PRIVATE_KEY, provider);
+
+console.log('contract address is',CONTRACT_ADDRESS);
+
+// Create contract instances
+const player1Contract = createContract(CONTRACT_ADDRESS, player1Signer);
+const player2Contract = createContract(CONTRACT_ADDRESS, player2Signer);
+console.log("Contract instances created");
+
 
 function replacePlaceholders(text: string, nationName: string): string {
   return text.replace(/\${nationName}/g, nationName);
 }
 
-function promptForIssue(issue: Issue, nationName: string): { option: Option; decision: Decision } | null {
-  console.log(`\n=== ${issue.name} ===`);
+function promptForIssue(issue: Issue, nationName: string, issueIndex: number): { option: Option; decision: Decision } | null {
+  const issueNumber = issueIndex + 1;
+  console.log(clc.blue(`\n=== Issue no. ${issueNumber} - ${issue.name} ===`));
+  console.log(clc.yellow("---------------------------------------------------------"));
   console.log(replacePlaceholders(issue.description, nationName));
+  console.log(clc.yellow("---------------------------------------------------------"));
 
   issue.options.forEach((option: Option) => {
     console.log(`\nOption ${option.id}: ${option.name}`);
     console.log(`Description: ${replacePlaceholders(option.description, nationName)}`);
   });
+  console.log(clc.yellow("---------------------------------------------------------"));
 
   const input = prompt(`\nChoose an option (1 - ${issue.options.length}): `);
   const choice = parseInt(input, 10);
@@ -120,21 +155,42 @@ function displayNationStatus(nation: Nation) {
 }
 
 export async function setupGame(): Promise<string> {
-  console.log("Welcome to Machina Imperium - Multiplayer!\n");
+  console.log(clc.yellow("A new game has been instantiated!"));
+  console.log(clc.blue("The game creator has been assigned as Player 1"));
+  console.log(clc.green("========================================"));
 
-  const personalities = selectPersonalities(3);
-  console.log("\nSelected Random AI Leaders:");
+  const personalities = selectPersonalities(5);
+  console.log(clc.yellow("\nAlong with human players, the following AI leaders have been selected to join the game:"));
+  console.log("Selected Random AI Leaders:");
+  console.log("========================================");
   personalities.forEach((p, i) => {
     console.log(`\n${i + 1}. ${p.name} - ${p.description}`);
   });
 
+  console.log(clc.green("\n========================================"));
+
   const gameId = createGame(personalities);
+
+  console.log(clc.red("please wait while we the game on Mantle..."));
+  // Store game on blockchain
+  try {
+    if (player1Contract) {
+      await chainWrite.createGame(player1Contract, gameId);
+      console.log("Game successfully created on Mantle!");
+    }
+  } catch (error) {
+    console.error("Warning: Failed to store game on blockchain:", error);
+    // Continue with game creation even if blockchain storage fails
+  }
+
   console.log(`\nGame created! Your game ID is: ${gameId}`);
+  console.log(clc.red("Please share this ID with your friend to join the game, and save it for later!"));
+  
   return gameId;
 }
 
 async function promptForNationName(): Promise<string> {
-  console.log("What would you like to name your nation?");
+  console.log(clc.blue("What would you like to name your nation?"))
   const name = prompt("> ").trim();
   if (!name) {
     throw new Error("Nation name cannot be empty");
@@ -143,7 +199,8 @@ async function promptForNationName(): Promise<string> {
 }
 
 async function promptForIdeology(): Promise<Ideology> {
-  console.log("\nChoose your ideology (enter number 1-27):");
+  console.log(clc.yellow("\nChoose your ideology (enter number 1-27):"));
+  console.log(clc.green("========================================"));
   ideologies.forEach(i => {
     console.log(`${i.uid}. ${i.name}`);
   });
@@ -165,6 +222,18 @@ export async function createPlayerNation(gameId: string, isPlayer1: boolean = tr
 
   const nationName = await promptForNationName();
   const ideology = await promptForIdeology();
+
+  try {
+    if (!isPlayer1) {
+      // Player 2 joins game on blockchain
+      console.log("Joining game on blockchain...");
+      await chainWrite.joinGame(player2Contract, gameId);
+      console.log("Successfully joined game on blockchain!");
+    }
+  } catch (error) {
+    console.error("Warning: Failed to join game on blockchain:", error);
+    // Continue with game creation even if blockchain operation fails
+  }
   
   return createNation(gameId, nationName, ideology, 'human');
 }
@@ -193,38 +262,68 @@ export async function createAINations(gameId: string): Promise<void> {
 }
 
 export async function playGame(nation: Nation, gameId: string) {
-  console.log(`\nWelcome to ${nation.name}!\n`);
-  
+  console.log(clc.blue(`\nAs the leader of your nation ${nation.name}!, you will face various issues that will shape its future.\n`));
+  console.log(clc.yellow("You will be presented with a series of issues, each with multiple options.\n"));
+  console.log(clc.yellow("Your choices will impact your nation's stats and ideology."));
+  console.log(clc.green("========================================"));
+
   const originalNation: Nation = { ...nation };
   let currentNation: Nation = { 
     ...nation, 
     decisions: [] 
   };
   
-  for (const issue of issuesData.issues) {
-    const result = promptForIssue(issue, nation.name);
+  const game = getGame(gameId);
+  if (!game) return null;
+  
+  const contract = game.player1Nation?.name === nation.name ? player1Contract : player2Contract;
+
+  const relevantIssues = issuesData.issues.slice(0, 3);
+  
+  let issueIndex = 0;
+  for (const issue of relevantIssues) {
+    const result = promptForIssue(issue, nation.name, issueIndex);
+    issueIndex++;
     if (result) {
       currentNation = updateNationStats(currentNation, result.option.impact);
       currentNation.decisions.push(result.decision);
+
+      console.log(clc.red("Please wait while we log your decision on Mantle..."));
+      
+      // Log decision on blockchain
+      try {
+        await chainWrite.addDecision(
+          contract,
+          gameId,
+          result.decision.issueId,
+          result.decision.chosenOptionId
+        );
+        console.log(clc.green("Decision successfully logged on blockchain!"));
+      } catch (error) {
+        console.error("Warning: Failed to log decision on blockchain:", error);
+        // Continue game even if blockchain logging fails
+      }
     }
   }
 
   const newIdeology = determineNearestIdeology(currentNation.stats);
   const changes = calculateChanges(originalNation, currentNation);
   
-  console.log("\n=== Aggregate Changes ===");
+  console.log(clc.blue("\n=== Aggregate Changes ==="));
   console.log(`Previous Government Type: ${originalNation.ideology.name}`);
   console.log(`New Government Type: ${newIdeology.name}`);
+  console.log(clc.yellow("---------------------------------------------------------"));
   console.log("\nChanges in Freedom Indices:");
   console.log(`Economic Freedom: ${changes.economicFreedom >= 0 ? '+' : ''}${changes.economicFreedom}`);
   console.log(`Civil Rights: ${changes.civilRights >= 0 ? '+' : ''}${changes.civilRights}`);
   console.log(`Political Freedom: ${changes.politicalFreedom >= 0 ? '+' : ''}${changes.politicalFreedom}`);
   console.log(`GDP: ${changes.gdp >= 0 ? '+' : ''}${changes.gdp}`);
+  console.log(clc.yellow("---------------------------------------------------------"));
 
   if (originalNation.ideology.name !== newIdeology.name) {
-    console.log(`\n🔄 Your nation has evolved from a ${originalNation.ideology.name} to a ${newIdeology.name}!`);
+    console.log(clc.red(`\n🔄 Your nation has evolved from a ${originalNation.ideology.name} to a ${newIdeology.name}!`));
   } else {
-    console.log(`\n✨ Your nation remains a ${newIdeology.name}`);
+    console.log(clc.red(`\n✨ Your nation remains a ${newIdeology.name}`));
   }
 
   currentNation = {
@@ -232,15 +331,15 @@ export async function playGame(nation: Nation, gameId: string) {
     ideology: newIdeology
   };
 
-  const game = getGame(gameId);
-  if (game) {
-    if (game.player1Nation?.name === nation.name) {
-      game.player1Nation = currentNation;
-    } else if (game.player2Nation?.name === nation.name) {
-      game.player2Nation = currentNation;
+  const updatedGame = getGame(gameId);
+  if (updatedGame) {
+    if (updatedGame.player1Nation?.name === nation.name) {
+      updatedGame.player1Nation = currentNation;
+    } else if (updatedGame.player2Nation?.name === nation.name) {
+      updatedGame.player2Nation = currentNation;
     }
     
-    storeGame(gameId, game);
+    storeGame(gameId, updatedGame);
     displayGameInfo(gameId);
     compareNations(gameId);
   }

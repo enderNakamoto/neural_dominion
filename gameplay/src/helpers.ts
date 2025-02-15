@@ -2,6 +2,9 @@ import type { GameState, GameStatus, Nation, Ideology, Personality, Vector3D } f
 import { getStoredGame } from './storage';
 import personalities from './db/personalities';
 import {ideologies} from './db/ideologies';
+import cli  = require('cli-color');
+
+const clc = cli;
 
 // Default initial GDP value
 const DEFAULT_GDP = 5000;
@@ -268,29 +271,35 @@ export function displayGameInfo(gameId: string) {
   const game = getStoredGame(gameId);
   if (!game) return;
 
-  console.log("\n=== Game Status Update ===");
+  console.log(clc.green("\n=== Game Status Update ==="));
   
   if (game.player1Nation) {
+    console.log(clc.yellow("-------------------------------------------------------"));
     console.log("\nPlayer 1:", game.player1Nation.name);
     console.log("Ideology:", game.player1Nation.ideology.name);
     console.log("Economic Freedom:", game.player1Nation.stats.economicFreedom);
     console.log("Civil Rights:", game.player1Nation.stats.civilRights);
     console.log("Political Freedom:", game.player1Nation.stats.politicalFreedom);
     console.log("GDP:", game.player1Nation.stats.gdp);
+    console.log(clc.yellow("-------------------------------------------------------"));
   }
 
   if (game.player2Nation) {
+    console.log(clc.blue("-------------------------------------------------------"));
     console.log("\nPlayer 2:", game.player2Nation.name);
     console.log("Ideology:", game.player2Nation.ideology.name);
     console.log("Economic Freedom:", game.player2Nation.stats.economicFreedom);
     console.log("Civil Rights:", game.player2Nation.stats.civilRights);
     console.log("Political Freedom:", game.player2Nation.stats.politicalFreedom);
     console.log("GDP:", game.player2Nation.stats.gdp);
+    console.log(clc.blue("-------------------------------------------------------"));
   }
 
   if (game.aiNations.length > 0) {
-    console.log("\nAI Nations:");
+    console.log(clc.red("\nAI Nations:"));
+    console.log(clc.red("==========================================="));
     game.aiNations.forEach(nation => {
+      console.log(clc.red("-------------------------------------------------------"));
       console.log(`\n${nation.name}`);
       console.log("Leader:", nation.personality?.name);
       console.log("Ideology:", nation.ideology.name);
@@ -298,6 +307,7 @@ export function displayGameInfo(gameId: string) {
       console.log("Civil Rights:", nation.stats.civilRights);
       console.log("Political Freedom:", nation.stats.politicalFreedom);
       console.log("GDP:", nation.stats.gdp);
+      console.log(clc.red("-------------------------------------------------------"));
     });
   }
 }

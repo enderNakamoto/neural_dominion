@@ -5,7 +5,9 @@ import { getGame, isGameReady, listActiveGames, updateGameStatus, calculateWinne
 import { processAlliances } from './agents/diplomat';
 import { generateHistory } from './agents/historian';
 import type { Nation } from './types';
+import cli  = require('cli-color');
 
+const clc = cli;
 const prompt = PromptSync({ sigint: true });
 
 function displayNationDecisions(nation: Nation) {
@@ -63,28 +65,39 @@ async function processGame(gameId: string) {
   }
 
   try {
-    console.log("\nProcessing game...");
+    console.log(clc.red("\nProcessing game..."));
+    console.log(clc.red("AI Leaders are making decisions..."));
     updateGameStatus(gameId, 'processing');
     await createAINations(gameId);
+    console.log(clc.green("AI decisions completed!"));
+    console.log(clc.green("=========================================================="));
     
     const finalGame = getGame(gameId);
     if (finalGame) {
-      console.log("\n=== Nation Reports ===");
+      console.log(clc.yellow("\n=== Nation Reports ==="));
+      console.log(clc.yellow("=========================================================="));
       console.log("\nGenerating historical accounts for all nations...\n");
+      console.log(clc.green("The Historian Agent is hard at work..."));
 
       if (finalGame.player1Nation) {
         const history1 = await generateHistory(gameId, finalGame.player1Nation.name);
         if (history1) console.log(history1);
+        console.log(clc.green("Player 1 history generated!"));
+        console.log(clc.green("=========================================================="));
       }
       
       if (finalGame.player2Nation) {
         const history2 = await generateHistory(gameId, finalGame.player2Nation.name);
         if (history2) console.log(history2);
+        console.log(clc.green("Player 2 history generated!"));
+        console.log(clc.green("=========================================================="));
       }
       
       for (const aiNation of finalGame.aiNations) {
         const aiHistory = await generateHistory(gameId, aiNation.name);
         if (aiHistory) console.log(aiHistory);
+        console.log(clc.red(`${aiNation.name} history generated!`));
+        console.log(clc.red("=========================================================="));
       }
     }
 
@@ -154,15 +167,16 @@ async function processWinner(gameId: string) {
 
 async function startGame() {
   while (true) {
-    console.clear();
-    console.log("Machina Imperium\n");
-    console.log("1. Create new game");
-    console.log("2. Join existing game");
-    console.log("3. List active games");
-    console.log("4. Process the Game");
-    console.log("5. Show Nation Decisions");
-    console.log("6. Process Alliances");
-    console.log("7. Calculate Winner");
+    console.log(clc.yellow("Neural Dominion\n"));
+    console.log(clc.blue("Choose an option:"));
+    console.log(clc.green("========================================"));
+    console.log("1. Create new game - Player 1 Creates Nation");
+    console.log("2. Join existing game - Player 2 Creates Nation");
+    console.log("3. List active games - Get Game ID of open games");
+    console.log("4. Process the Game - AI Leader Decisions");
+    console.log("5. Show Nation Decisions - View decisions made by nations");
+    console.log("6. Process Alliances - AI Leaders decide on alliances");
+    console.log("7. Calculate Winner - Determine the winner of the game");
     console.log("8. Exit");
     
     const choice = prompt("\nSelect an option: ");
