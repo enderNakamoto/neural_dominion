@@ -217,5 +217,5 @@ Follow the on-screen prompts to create or join a game.
 ## Smart Contract
 
 ## Mantle
-* Contract - 0x14cf0cd23b5a444f1e57765d12f21ee7f1e8a2c3
-* Verified Contract - https://sepolia.mantlescan.xyz/address/0x14cf0cd23b5a444f1e57765d12f21ee7f1e8a2c3#code
+* Contract - 0xbdc5703Da37d31Af4789a16feea9D009C6fA078E
+* Verified Contract - https://sepolia.mantlescan.xyz/address/0xbdc5703da37d31af4789a16feea9d009c6fa078e#code
