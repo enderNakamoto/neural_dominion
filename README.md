@@ -26,10 +26,6 @@
    * [Smart Contract](#smart-contract)
    * [Run Locally](#run-locally)
    * [Smart Contracts ](#smart-contracts)
-      + [Ethereum Sepolia ](#ethereum-sepolia)
-      + [Base Sepolia ](#base-sepolia)
-      + [Arbitrum Sepolia ](#arbitrum-sepolia)
-      + [Flow Testnet ](#flow-testnet)
 
 <!-- TOC end -->
 
